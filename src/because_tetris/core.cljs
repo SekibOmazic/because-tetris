@@ -2,8 +2,6 @@
     (:require ))
 
 ;; colors
-(def dark-green "#143")
-(def light-green "#175")
 (def dark-purple "#449")
 (def light-purple "#6ad")
 
