@@ -66,30 +66,21 @@
     (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) (pieces piece-key))))
 
 
-(defn center?
-  "for the given cell [x y] check if this is the center cell of the tetris piece"
-  [[x y]]
-  (let [mx (:col @app)
-        my (:row @app)]
-    (= [0 0] [(- mx x) (- my y)])))
-
-
 (defn draw-cell
-  "takes canvas ctx, cell coordinates and the flag if the cell is in selected (mouse over) tetris piece"
-  [ctx [x y] active]
+  "takes canvas ctx, cell coordinates, is tetris item being hovered and is center cell"
+  [ctx [x y] is-active-item is-center-cell]
   
   (let [rx (* cell-size x)
         ry (* cell-size y)
         rs cell-size]
     (set! (.-fillStyle ctx)
           (cond
-            (center? [x y]) dark-green
-            active dark-purple
+            (and is-active-item is-center-cell) dark-green
+            is-active-item dark-purple
             :else "transparent"))
     (set! (.-strokeStyle ctx)
           (cond
-            ;;(center? [x y]) light-green
-            active light-purple
+            is-active-item light-purple
             :else "#888"))
     (.fillRect ctx rx ry rs rs)
     (.strokeRect ctx rx ry rs rs)))
@@ -108,7 +99,7 @@
   (let [piece-cells (get-absolute-coords piece-key)
         active (active-piece? piece-cells)]
     (doseq [cell piece-cells]
-      (draw-cell ctx cell active))))
+      (draw-cell ctx cell active (= cell (positions piece-key))))))
 
 
 (defn draw-board
@@ -123,20 +114,6 @@
   (.requestAnimationFrame js/window render)
   (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
   (draw-board game-ctx positions))
-
-
-
-#_(defn render
-  []
-  (.requestAnimationFrame js/window render)
-  (let [x (:col @app)
-        y (:row @app)]
-    (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
-    (set! (.-lineWidth game-ctx) 2)
-    (set! (.-fillStyle game-ctx) dark-purple)
-    (set! (.-strokeStyle game-ctx) light-purple)
-    (when y
-      (draw-cell game-ctx [x y]))))
 
 
 (.addEventListener game-canvas "mousemove" canvas-mouse-listener)
