@@ -6,7 +6,7 @@ Learning clojure(script) by programming the cult game of tetris
 
 
 - Step 1: create a basic page with 2 canvas elements, one for the game and one to display game status. Register a mouse listener and render a cell based on mouse position
-
+- Step 2: draw all 7 pieces. Color of the active piece (mouse is over the piece) should be purple. In this case the color of the center cell should be green.
 
 
 ## Setup

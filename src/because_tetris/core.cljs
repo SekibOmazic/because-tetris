@@ -60,6 +60,7 @@
 
 
 (defn get-absolute-coords
+  "for the given piece key (name) get a vector of absolute positions (using positions and pieces)"
   [piece-key]
   (let [[cx cy] (positions piece-key)]
     (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) (pieces piece-key))))
@@ -95,6 +96,7 @@
 
 
 (defn active-piece?
+  "check if the current mouse coordinates are inside given tetris item"
   [piece-cells]
   (let [x (:col @app)
         y (:row @app)]
@@ -120,7 +122,7 @@
   []
   (.requestAnimationFrame js/window render)
   (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
-  (draw-board game-ctx pieces))
+  (draw-board game-ctx positions))
 
 
 
