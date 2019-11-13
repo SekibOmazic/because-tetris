@@ -16,17 +16,15 @@
    :O [[ 0 -1] [ 1 -1] [ 0  0] [ 1  0]]
    :T [[ 0 -1] [-1  0] [ 0  0] [ 1  0]]})
 
-(def positions
-  {:I [4 1]
-   :T [4 4]
-   :O [4 7]
-   :J [4 10]
-   :L [4 13]
-   :S [4 16]
-   :Z [4 19]})
+(def next-piece
+  {:I :T
+   :T :O
+   :O :J
+   :J :L
+   :L :S
+   :S :Z
+   :Z :I})
 
-;; state
-(defonce app (atom {:row nil :col nil}))
 
 ;; board 
 (def rows 20)
@@ -34,13 +32,22 @@
 (def empty-row (vec (repeat cols 0)))
 (def empty-board (vec (repeat rows empty-row)))
 
+(def initial-pos [4 6])
+
+;; state
+(defonce app (atom {:piece :J
+                    :position initial-pos}))
+
+
 ;; canvas
 (def game-canvas (.getElementById js/document "game-canvas"))
 (def game-ctx (.getContext game-canvas "2d"))
 (def cell-size (quot 600 rows)) ;; quot rounds to the nearest integer
+(def next-canvas (.getElementById js/document "next-canvas"))
+(def next-ctx (.getContext next-canvas "2d"))
 
 
-(defn canvas-mouse-listener
+(defn mousemove-handler
   "updates row and col based on mouse position"
   [e]
   (let [rect (.getBoundingClientRect game-canvas) ;; rect = canvas.getBoundingClientRect()
@@ -48,76 +55,70 @@
         y (- (.-clientY e) (.-top rect))          ;; y = e.clientY - rect.top
         col (quot x cell-size)                    ;; calculate col
         row (quot y cell-size)]
-    (swap! app assoc :row row)
-    (swap! app assoc :col col)))
+    (swap! app assoc :position [col row])))
 
 
-(defn canvas-leave-mouse-listener
+(defn mouseleave-handler
   [_]
-  (do
-    (swap! app assoc :row nil)
-    (swap! app assoc :col nil)))
+  (swap! app assoc :position initial-pos))
+
+
+(defn click-handler
+  [_]
+  (swap! app update :piece next-piece))
 
 
 (defn get-absolute-coords
-  "for the given piece key (name) get a vector of absolute positions (using positions and pieces)"
-  [piece-key]
-  (let [[cx cy] (positions piece-key)]
+  "for the given piece key (name) get a vector of absolute positions (using position from app state and pieces map)"
+  [piece-key piece-pos]
+  (let [[cx cy] piece-pos]
     (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) (pieces piece-key))))
 
 
 (defn draw-cell
-  "takes canvas ctx, cell coordinates, is tetris item being hovered and is center cell"
-  [ctx [x y] is-active-item is-center-cell]
+  "render the cell with given coordinates on the given canvas"
+  [ctx [x y]]
   
   (let [rx (* cell-size x)
         ry (* cell-size y)
         rs cell-size]
-    (set! (.-fillStyle ctx)
-          (cond
-            (and is-active-item is-center-cell) dark-green
-            is-active-item dark-purple
-            :else "transparent"))
-    (set! (.-strokeStyle ctx)
-          (cond
-            is-active-item light-purple
-            :else "#888"))
+    (set! (.-fillStyle ctx) dark-purple)
+    (set! (.-strokeStyle ctx) light-purple)
     (.fillRect ctx rx ry rs rs)
     (.strokeRect ctx rx ry rs rs)))
 
 
-(defn active-piece?
-  "check if the current mouse coordinates are inside given tetris item"
-  [piece-cells]
-  (let [x (:col @app)
-        y (:row @app)]
-    (some #(= [x y] %) piece-cells)))
-
-
 (defn draw-piece
-  [ctx piece-key]
-  (let [piece-cells (get-absolute-coords piece-key)
-        active (active-piece? piece-cells)]
+  [ctx piece-name piece-pos]
+  (let [piece-cells (get-absolute-coords piece-name piece-pos)]
     (doseq [cell piece-cells]
-      (draw-cell ctx cell active (= cell (positions piece-key))))))
+      (draw-cell ctx cell))))
 
 
-(defn draw-board
-  [ctx pieces]
+(defn draw-current-piece
+  [ctx]
   (set! (.-lineWidth ctx) 2)
-  (doseq [p (keys pieces)]
-    (draw-piece ctx p)))
+  (draw-piece ctx (:piece @app) (:position @app)))
+
+
+(defn draw-next-piece
+  [ctx]
+  (set! (.-lineWidth ctx) 2)
+  (draw-piece ctx ((:piece @app) next-piece) [1 2]))
 
 
 (defn render
   []
   (.requestAnimationFrame js/window render)
   (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
-  (draw-board game-ctx positions))
+  (.clearRect next-ctx 0 0 (* cell-size 4) (* cell-size 4))
+  (draw-current-piece game-ctx)
+  (draw-next-piece next-ctx))
 
 
-(.addEventListener game-canvas "mousemove" canvas-mouse-listener)
-(.addEventListener game-canvas "mouseleave" canvas-leave-mouse-listener)
+(.addEventListener game-canvas "mousemove" mousemove-handler)
+(.addEventListener game-canvas "mouseleave" mouseleave-handler)
+(.addEventListener next-canvas "mousedown" click-handler)
 
 
 ;; start
