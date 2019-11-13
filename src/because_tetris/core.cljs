@@ -26,6 +26,20 @@
    :Z :I})
 
 
+;; keys
+(def key-names
+  {37 :left
+   38 :up
+   39 :right
+   40 :down
+   32 :space})
+
+(defn key-name
+  [event]
+  (-> event .-keyCode key-names))
+
+
+
 ;; board 
 (def rows 20)
 (def cols 10)
@@ -35,9 +49,9 @@
 (def initial-pos [4 6])
 
 ;; state
-(defonce app (atom {:piece :J
+(defonce app (atom {:piece (:J pieces)
+                    :piece-name :J
                     :position initial-pos}))
-
 
 ;; canvas
 (def game-canvas (.getElementById js/document "game-canvas"))
@@ -45,6 +59,27 @@
 (def cell-size (quot 600 rows)) ;; quot rounds to the nearest integer
 (def next-canvas (.getElementById js/document "next-canvas"))
 (def next-ctx (.getContext next-canvas "2d"))
+
+;; piece rotation and movement
+(defn rotate-cell
+  [[x y]]
+  [(- y) x])
+
+(defn rotate
+  [piece]
+  (mapv rotate-cell piece))
+
+(defn move-left
+  [[x y]]
+  [(dec x) y])
+
+(defn move-right
+  [[x y]]
+  [(inc x) y])
+
+(defn move-down
+  [x y]
+  [x (inc y)])
 
 
 (defn mousemove-handler
@@ -65,14 +100,22 @@
 
 (defn click-handler
   [_]
-  (swap! app update :piece next-piece))
+  (let [next-name ((:piece-name @app) next-piece)
+        next-cells (pieces next-name)]
+    (println (str " next " next-name))
+    (println (str " next-cells " next-cells))
+    #_(do
+      (swap! app update :piece-name next-name)
+      (swap! app assoc :piece next-cells)
+      )
+    ))
 
 
 (defn get-absolute-coords
-  "for the given piece key (name) get a vector of absolute positions (using position from app state and pieces map)"
-  [piece-key piece-pos]
+  "for the given piece (vector of cells) get a vector of absolute positions using current position"
+  [piece piece-pos]
   (let [[cx cy] piece-pos]
-    (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) (pieces piece-key))))
+    (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) piece)))
 
 
 (defn draw-cell
@@ -89,8 +132,8 @@
 
 
 (defn draw-piece
-  [ctx piece-name piece-pos]
-  (let [piece-cells (get-absolute-coords piece-name piece-pos)]
+  [ctx piece piece-pos]
+  (let [piece-cells (get-absolute-coords piece piece-pos)]
     (doseq [cell piece-cells]
       (draw-cell ctx cell))))
 
@@ -104,7 +147,9 @@
 (defn draw-next-piece
   [ctx]
   (set! (.-lineWidth ctx) 2)
-  (draw-piece ctx ((:piece @app) next-piece) [1 2]))
+  (let [next-name ((:piece-name @app) next-piece)
+        next-cells (pieces next-name)]
+    (draw-piece ctx next-cells [1 2])))
 
 
 (defn render
@@ -116,8 +161,8 @@
   (draw-next-piece next-ctx))
 
 
-(.addEventListener game-canvas "mousemove" mousemove-handler)
-(.addEventListener game-canvas "mouseleave" mouseleave-handler)
+#_(.addEventListener game-canvas "mousemove" mousemove-handler)
+#_(.addEventListener game-canvas "mouseleave" mouseleave-handler)
 (.addEventListener next-canvas "mousedown" click-handler)
 
 
