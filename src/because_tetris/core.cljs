@@ -49,7 +49,8 @@
 (def initial-pos [4 6])
 
 ;; state
-(defonce app (atom {:piece (:J pieces)
+(defonce app (atom {:board empty-board
+                    :piece (:J pieces)
                     :piece-name :J
                     :position initial-pos}))
 
@@ -102,13 +103,28 @@
   [_]
   (let [next-name ((:piece-name @app) next-piece)
         next-cells (pieces next-name)]
-    (println (str " next " next-name))
-    (println (str " next-cells " next-cells))
-    #_(do
-      (swap! app update :piece-name next-name)
-      (swap! app assoc :piece next-cells)
-      )
-    ))
+    (swap! app assoc :piece-name next-name)
+    (swap! app assoc :piece next-cells)))
+
+
+
+(defn try-rotate
+  []
+  (let [{:keys [piece position]} @app
+        rotated (rotate piece)]
+    (swap! app assoc :piece rotated)))
+
+
+(defn keydown-handler
+  [event]
+  (let [keyname (key-name event)]
+    (case keyname
+      ;;:left (try-move -1)
+      ;;:right (try-move 1)
+      :up (try-rotate)
+      nil)
+    (when (#{:down :left :right :up :space} keyname)
+      (.preventDefault event))))
 
 
 (defn get-absolute-coords
@@ -161,9 +177,10 @@
   (draw-next-piece next-ctx))
 
 
-#_(.addEventListener game-canvas "mousemove" mousemove-handler)
-#_(.addEventListener game-canvas "mouseleave" mouseleave-handler)
+(.addEventListener game-canvas "mousemove" mousemove-handler)
+(.addEventListener game-canvas "mouseleave" mouseleave-handler)
 (.addEventListener next-canvas "mousedown" click-handler)
+(.addEventListener js/window "keydown" keydown-handler)
 
 
 ;; start

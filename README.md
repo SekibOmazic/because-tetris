@@ -8,6 +8,7 @@ Learning clojure(script) by programming the cult game of tetris
 - Step 1: create a basic page with 2 canvas elements, one for the game and one to display next piece. Register a mouse listener and render a cell based on mouse position
 - Step 2: draw all 7 pieces. Color of the active piece (mouse is over the piece) should be purple. In this case the color of the center cell should be green.
 - Step 3: draw one piece on the main canvas based on the current mouse position. On the next piece canvas add a click handler to change the next piece on each mouse click
+- Step 4: add a keydown handler, bind it to Arrow Up key and rotate the current piece on keydown event
 
 
 ## Setup
