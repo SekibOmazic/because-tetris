@@ -18,15 +18,16 @@ h1 {
 }
 
 .score {
-  height: 600px;
-  padding: 20px;
-  float: left;
-  display: inline;
-  background: #2c2c2c;
-  border-radius: 10px;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  -webkit-user-select: none;
+    height: 600px;
+    width: 200px;
+    padding: 20px;
+    float: left;
+    display: inline;
+    background: #2c2c2c;
+    border-radius: 10px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    -webkit-user-select: none;
 }
 
 .game {
@@ -44,4 +45,26 @@ h1 {
   background-color: #333;
   color: #AAA;
   font-size: 16px;
+}
+
+.score p {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: "Helvetica", sans-serif;
+    text-align: center;
+    margin-left: -1em;
+    color: white;
+}
+
+.score p strong {
+    width: 100%;
+    display: block;
+    font-size: 3em;
+    letter-spacing: 0px;
+}
+
+.next-piece {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
