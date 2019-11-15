@@ -10,6 +10,7 @@ Learning clojure(script) by programming the cult game of tetris
 - Step 3: draw one piece on the main canvas based on the current mouse position. On the next piece canvas add a click handler to change the next piece on each mouse click
 - Step 4: add a keydown handler, bind it to Arrow Up key and rotate the current piece on keydown event
 - Step 5: write the current piece on the board when clicked
+- Step 6: add colors and collision detection. No tetromino should be written to the board if it doesn't fit on the board (no cells out of the board and no overlapping with already stored tetrominons)
 
 
 ## Setup
