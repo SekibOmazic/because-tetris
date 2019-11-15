@@ -1,13 +1,23 @@
 (ns because-tetris.core
     (:require ))
 
-;; colors
-(def dark-purple "#449")
-(def light-purple "#6ad")
-(def dark-green "#143")
-(def light-green "#175")
+(def colors
+  {:I "#72fafd"
+   :T "#ea3ff7"
+   :O "#fffd55"
+   :J "#0023f5"
+   :L "#f08633"
+   :S "#75fa4c"
+   :Z "#eb3323"})
 
-(def pieces
+(def key-names
+  {37 :left
+   38 :up
+   39 :right
+   40 :down
+   32 :space})
+
+(def tetrominos
   {:I [[-1  0] [ 0  0] [ 1  0] [ 2  0]]
    :L [[ 1 -1] [-1  0] [ 0  0] [ 1  0]]
    :J [[-1 -1] [-1  0] [ 0  0] [ 1  0]]
@@ -16,7 +26,7 @@
    :O [[ 0 -1] [ 1 -1] [ 0  0] [ 1  0]]
    :T [[ 0 -1] [-1  0] [ 0  0] [ 1  0]]})
 
-(def next-piece
+(def next-tetromino
   {:I :T
    :T :O
    :O :J
@@ -24,21 +34,6 @@
    :L :S
    :S :Z
    :Z :I})
-
-
-;; keys
-(def key-names
-  {37 :left
-   38 :up
-   39 :right
-   40 :down
-   32 :space})
-
-(defn key-name
-  [event]
-  (-> event .-keyCode key-names))
-
-
 
 ;; board 
 (def rows 20)
@@ -50,8 +45,8 @@
 
 ;; state
 (defonce app (atom {:board empty-board
-                    :piece-name :J
-                    :piece (:J pieces)
+                    :tetromino-name :J
+                    :piece (:J tetrominos)
                     :position initial-pos}))
 
 ;; canvas
@@ -61,14 +56,20 @@
 (def next-canvas (.getElementById js/document "next-canvas"))
 (def next-ctx (.getContext next-canvas "2d"))
 
-;; piece rotation and movement
+
+(defn key-name
+  [event]
+  (-> event .-keyCode key-names))
+
+
+;; tetromino rotation and movement
 (defn rotate-cell
   [[x y]]
   [(- y) x])
 
 (defn rotate
-  [piece]
-  (mapv rotate-cell piece))
+  [tetromino]
+  (mapv rotate-cell tetromino))
 
 (defn move-left
   [[x y]]
@@ -101,29 +102,39 @@
 
 (defn next-piece-click-handler
   [_]
-  (let [next-name ((:piece-name @app) next-piece)
-        next-cells (pieces next-name)]
-    (swap! app assoc :piece-name next-name)
+  (let [next-name ((:tetromino-name @app) next-tetromino)
+        next-cells (tetrominos next-name)]
+    (swap! app assoc :tetromino-name next-name)
     (swap! app assoc :piece next-cells)))
 
 
 (defn cells-to-write
-  "take the current piece as a vector of cells, the current position and write it on board"
-  [board piece [cx cy]]
+  "take the current piece as a vector of cells, the current position, tetromino name and write it on board"
+  [board piece [cx cy] name]
   (reduce (fn [board [x y]]
             (try
-              (assoc-in board [(+ cy y) (+ cx x)] 1)
+              (assoc-in board [(+ cy y) (+ cx x)] name) ;; note: querying board coords with [row, col]
               (catch js/Error _ board )))
           board
           piece))
 
+(defn fits-in?
+  "check if the given tetromino fits into the board (no overlapping with the tetrominos on the board)"
+  [board tetromino [cx cy]]
+  (every?
+   (fn [[x y]]
+     (zero? (get-in board [(+ cy y) (+ cx x)])))
+   tetromino))
+
 
 (defn write-to-board!
+  "write tetromino on the board"
   []
-  (let [{:keys [piece position]} @app]
-    (swap! app
-           update-in [:board]
-           cells-to-write piece position)))
+  (let [{:keys [board piece position tetromino-name]} @app]
+    (when (fits-in? board piece position)
+      (swap! app
+             update-in [:board]
+             cells-to-write piece position tetromino-name))))
 
 
 (defn game-click-handler
@@ -151,10 +162,10 @@
 
 
 (defn get-absolute-coords
-  "for the given piece (vector of cells) and it's current position get a vector of absolute positions"
-  [piece pos]
+  "for the given tetromino (vector of cells) and it's current position get a vector of absolute positions"
+  [tetromino pos]
   (let [[cx cy] pos]
-    (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) piece)))
+    (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) tetromino)))
 
 
 (defn draw-cell
@@ -163,41 +174,41 @@
   (let [rx (* cell-size x)
         ry (* cell-size y)
         rs cell-size]
-    (set! (.-fillStyle ctx) dark-purple)
-    (set! (.-strokeStyle ctx) light-purple)
     (.fillRect ctx rx ry rs rs)
     (.strokeRect ctx rx ry rs rs)))
 
 
 (defn draw-piece
-  "calculate absoulute position of the current piece and draw it"
-  [ctx piece piece-pos]
-  (let [piece-cells (get-absolute-coords piece piece-pos)]
-    (doseq [cell piece-cells]
+  "calculate absoulute position of the current tetromino and draw it"
+  [ctx tetromino pos]
+  (let [tetromino-cells (get-absolute-coords tetromino pos)]
+    (doseq [cell tetromino-cells]
       (draw-cell ctx cell))))
 
 
-(defn draw-current-piece
+(defn draw-current!
   [ctx]
-  (set! (.-lineWidth ctx) 2)
+  (set! (.-fillStyle ctx) ((:tetromino-name @app) colors))
   (draw-piece ctx (:piece @app) (:position @app)))
 
 
-(defn draw-next-piece
+(defn draw-next!
   [ctx]
-  (set! (.-lineWidth ctx) 2)
-  (let [next-name ((:piece-name @app) next-piece)
-        next-cells (pieces next-name)]
+  (let [next-name ((:tetromino-name @app) next-tetromino)
+        next-cells (tetrominos next-name)]
+    (set! (.-fillStyle ctx) (next-name colors))
     (draw-piece ctx next-cells [1 2])))
 
 
-(defn draw-board
+(defn draw-board!
   [ctx board]
   (doseq [y (range rows)
           x (range cols)]
     (let [cell-value (get-in board [y x])] ;; query board with [row coll]
       (when-not (zero? cell-value)
-        (draw-cell ctx [x y])))))
+        (do
+          (set! (.-fillStyle ctx) (cell-value colors))
+          (draw-cell ctx [x y]))))))
 
 
 (defn render
@@ -205,9 +216,14 @@
   (.requestAnimationFrame js/window render)
   (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
   (.clearRect next-ctx 0 0 (* cell-size 4) (* cell-size 4))
-  (draw-board game-ctx (:board @app))
-  (draw-current-piece game-ctx)
-  (draw-next-piece next-ctx))
+  (set! (.-lineWidth game-ctx) 2)
+  (set! (.-lineWidth next-ctx) 2)
+  (set! (.-strokeStyle game-ctx) "#333")
+  (set! (.-strokeStyle next-ctx) "#2c2c2c")
+
+  (draw-board! game-ctx (:board @app))
+  (draw-current! game-ctx)
+  (draw-next! next-ctx))
 
 
 (.addEventListener game-canvas "mousemove" mousemove-handler)
