@@ -50,8 +50,8 @@
 
 ;; state
 (defonce app (atom {:board empty-board
-                    :piece (:J pieces)
                     :piece-name :J
+                    :piece (:J pieces)
                     :position initial-pos}))
 
 ;; canvas
@@ -99,13 +99,36 @@
   (swap! app assoc :position initial-pos))
 
 
-(defn click-handler
+(defn next-piece-click-handler
   [_]
   (let [next-name ((:piece-name @app) next-piece)
         next-cells (pieces next-name)]
     (swap! app assoc :piece-name next-name)
     (swap! app assoc :piece next-cells)))
 
+
+(defn cells-to-write
+  "take the current piece as a vector of cells, the current position and write it on board"
+  [board piece [cx cy]]
+  (reduce (fn [board [x y]]
+            (try
+              (assoc-in board [(+ cy y) (+ cx x)] 1)
+              (catch js/Error _ board )))
+          board
+          piece))
+
+
+(defn write-to-board!
+  []
+  (let [{:keys [piece position]} @app]
+    (swap! app
+           update-in [:board]
+           cells-to-write piece position)))
+
+
+(defn game-click-handler
+  [_]
+  (write-to-board!))
 
 
 (defn try-rotate
@@ -128,16 +151,15 @@
 
 
 (defn get-absolute-coords
-  "for the given piece (vector of cells) get a vector of absolute positions using current position"
-  [piece piece-pos]
-  (let [[cx cy] piece-pos]
+  "for the given piece (vector of cells) and it's current position get a vector of absolute positions"
+  [piece pos]
+  (let [[cx cy] pos]
     (mapv (fn [[x y]] [(+ cx x) (+ cy y)]) piece)))
 
 
 (defn draw-cell
   "render the cell with given coordinates on the given canvas"
-  [ctx [x y]]
-  
+  [ctx [x y]]  
   (let [rx (* cell-size x)
         ry (* cell-size y)
         rs cell-size]
@@ -148,6 +170,7 @@
 
 
 (defn draw-piece
+  "calculate absoulute position of the current piece and draw it"
   [ctx piece piece-pos]
   (let [piece-cells (get-absolute-coords piece piece-pos)]
     (doseq [cell piece-cells]
@@ -168,19 +191,31 @@
     (draw-piece ctx next-cells [1 2])))
 
 
+(defn draw-board
+  [ctx board]
+  (doseq [y (range rows)
+          x (range cols)]
+    (let [cell-value (get-in board [y x])] ;; query board with [row coll]
+      (when-not (zero? cell-value)
+        (draw-cell ctx [x y])))))
+
+
 (defn render
   []
   (.requestAnimationFrame js/window render)
   (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
   (.clearRect next-ctx 0 0 (* cell-size 4) (* cell-size 4))
+  (draw-board game-ctx (:board @app))
   (draw-current-piece game-ctx)
   (draw-next-piece next-ctx))
 
 
 (.addEventListener game-canvas "mousemove" mousemove-handler)
 (.addEventListener game-canvas "mouseleave" mouseleave-handler)
-(.addEventListener next-canvas "mousedown" click-handler)
+(.addEventListener next-canvas "mousedown" next-piece-click-handler)
 (.addEventListener js/window "keydown" keydown-handler)
+
+(.addEventListener game-canvas "mousedown" game-click-handler)
 
 
 ;; start
