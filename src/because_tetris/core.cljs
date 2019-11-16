@@ -26,28 +26,20 @@
    :O [[ 0 -1] [ 1 -1] [ 0  0] [ 1  0]]
    :T [[ 0 -1] [-1  0] [ 0  0] [ 1  0]]})
 
-(def next-tetromino
-  {:I :T
-   :T :O
-   :O :J
-   :J :L
-   :L :S
-   :S :Z
-   :Z :I})
-
 ;; board 
 (def rows 20)
 (def cols 10)
 (def empty-row (vec (repeat cols 0)))
 (def empty-board (vec (repeat rows empty-row)))
 
-(def initial-pos [4 6])
+(def initial-pos [4 2])
 
 ;; state
 (defonce app (atom {:board empty-board
                     :tetromino-name :J
                     :piece (:J tetrominos)
-                    :position initial-pos}))
+                    :position initial-pos
+                    :next-tetromino (rand-nth (keys tetrominos))}))
 
 ;; canvas
 (def game-canvas (.getElementById js/document "game-canvas"))
@@ -79,44 +71,17 @@
   [[x y]]
   [(inc x) y])
 
-(defn move-down
-  [x y]
-  [x (inc y)])
-
-
-(defn mousemove-handler
-  "updates row and col based on mouse position"
-  [e]
-  (let [rect (.getBoundingClientRect game-canvas) ;; rect = canvas.getBoundingClientRect()
-        x (- (.-clientX e) (.-left rect))         ;; x = e.clientX - rect.left
-        y (- (.-clientY e) (.-top rect))          ;; y = e.clientY - rect.top
-        col (quot x cell-size)                    ;; calculate col
-        row (quot y cell-size)]
-    (swap! app assoc :position [col row])))
-
-
-(defn mouseleave-handler
-  [_]
-  (swap! app assoc :position initial-pos))
-
-
-(defn next-piece-click-handler
-  [_]
-  (let [next-name ((:tetromino-name @app) next-tetromino)
-        next-cells (tetrominos next-name)]
-    (swap! app assoc :tetromino-name next-name)
-    (swap! app assoc :piece next-cells)))
-
 
 (defn cells-to-write
-  "take the current piece as a vector of cells, the current position, tetromino name and write it on board"
-  [board piece [cx cy] name]
+  "take the current tetromino as a vector of cells, the current position, tetromino name and write it on board"
+  [board tetromino [cx cy] name]
   (reduce (fn [board [x y]]
             (try
               (assoc-in board [(+ cy y) (+ cx x)] name) ;; note: querying board coords with [row, col]
-              (catch js/Error _ board )))
+              (catch js/Error _ board)))
           board
-          piece))
+          tetromino))
+
 
 (defn fits-in?
   "check if the given tetromino fits into the board (no overlapping with the tetrominos on the board)"
@@ -137,25 +102,50 @@
              cells-to-write piece position tetromino-name))))
 
 
-(defn game-click-handler
-  [_]
-  (write-to-board!))
+(defn try-move
+  [dx]
+  (let [{:keys [board piece position]} @app
+        [x y] position
+        new-position [(+ dx x) y]]
+    (when (fits-in? board piece new-position)
+      (swap! app assoc :position new-position))))
 
 
 (defn try-rotate
   []
-  (let [{:keys [piece position]} @app
+  (let [{:keys [board piece position]} @app
         rotated (rotate piece)]
-    (swap! app assoc :piece rotated)))
+    (when (fits-in? board rotated position)
+      (swap! app assoc :piece rotated))))
+
+
+(defn finish-tetromino
+  []
+  (write-to-board!)
+  (swap! app assoc :tetromino-name (:next-tetromino @app))
+  (swap! app assoc :position initial-pos)
+  (swap! app assoc :piece ((:tetromino-name @app) tetrominos))
+  (swap! app assoc :next-tetromino (rand-nth (keys tetrominos))))
+
+
+(defn move-down
+  []
+  (let [{:keys [board piece position]} @app
+        [x y] position
+        new-pos [x (inc y)]]
+    (if (fits-in? board piece new-pos)
+      (swap! app assoc :position new-pos)
+      (finish-tetromino))))
 
 
 (defn keydown-handler
   [event]
   (let [keyname (key-name event)]
     (case keyname
-      ;;:left (try-move -1)
-      ;;:right (try-move 1)
+      :left (try-move -1)
+      :right (try-move 1)
       :up (try-rotate)
+      :down (move-down)
       nil)
     (when (#{:down :left :right :up :space} keyname)
       (.preventDefault event))))
@@ -178,7 +168,7 @@
     (.strokeRect ctx rx ry rs rs)))
 
 
-(defn draw-piece
+(defn draw-tetromino!
   "calculate absoulute position of the current tetromino and draw it"
   [ctx tetromino pos]
   (let [tetromino-cells (get-absolute-coords tetromino pos)]
@@ -189,15 +179,36 @@
 (defn draw-current!
   [ctx]
   (set! (.-fillStyle ctx) ((:tetromino-name @app) colors))
-  (draw-piece ctx (:piece @app) (:position @app)))
+  (draw-tetromino! ctx (:piece @app) (:position @app)))
 
 
 (defn draw-next!
   [ctx]
-  (let [next-name ((:tetromino-name @app) next-tetromino)
+  (let [next-name (:next-tetromino @app)
         next-cells (tetrominos next-name)]
     (set! (.-fillStyle ctx) (next-name colors))
-    (draw-piece ctx next-cells [1 2])))
+    (draw-tetromino! ctx next-cells [1 2])))
+
+
+
+
+
+
+
+
+
+(defn draw-ghost!
+  [ctx]
+  (set! (.-fillStyle ctx) "#555")
+  (let [{:keys [piece position]} @app
+        [x y] position
+        new-position [x 18]]
+    (draw-tetromino! ctx piece [x 18])))
+
+
+
+
+
 
 
 (defn draw-board!
@@ -222,16 +233,13 @@
   (set! (.-strokeStyle next-ctx) "#2c2c2c")
 
   (draw-board! game-ctx (:board @app))
+  (draw-ghost! game-ctx)
+
   (draw-current! game-ctx)
   (draw-next! next-ctx))
 
 
-(.addEventListener game-canvas "mousemove" mousemove-handler)
-(.addEventListener game-canvas "mouseleave" mouseleave-handler)
-(.addEventListener next-canvas "mousedown" next-piece-click-handler)
 (.addEventListener js/window "keydown" keydown-handler)
-
-(.addEventListener game-canvas "mousedown" game-click-handler)
 
 
 ;; start
