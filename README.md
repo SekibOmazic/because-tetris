@@ -11,6 +11,7 @@ Learning clojure(script) by programming the cult game of tetris
 - Step 4: add a keydown handler, bind it to Arrow Up key and rotate the current piece on keydown event
 - Step 5: write the current piece on the board when clicked
 - Step 6: add colors and collision detection. No tetromino should be written to the board if it doesn't fit on the board (no cells out of the board and no overlapping with already stored tetrominons)
+- Step 7: Use keyboard for tetromino movements (left, right, down, up for rotation). Render the ghost tetromino which can be toggled when pressing the key "g"
 
 
 ## Setup
