@@ -15,8 +15,7 @@
    38 :up
    39 :right
    40 :down
-   32 :space
-   71 :g})
+   32 :space})
 
 (def tetrominos
   {:I [[-1  0] [ 0  0] [ 1  0] [ 2  0]]
@@ -40,8 +39,7 @@
                     :tetromino-name :J
                     :piece (:J tetrominos)
                     :position initial-pos
-                    :next-tetromino (rand-nth (keys tetrominos))
-                    :ghost true}))
+                    :next-tetromino (rand-nth (keys tetrominos))}))
 
 ;; canvas
 (def game-canvas (.getElementById js/document "game-canvas"))
@@ -94,20 +92,6 @@
    tetromino))
 
 
-(defn find-first
-  "find the first element in the collection that meets requirement defined by function f"
-  [f coll]
-  (first (filter f coll)))
-
-
-(defn get-drop-y
-  "find first colliding y coordinate for the given board, tetromino and tetromino's current position"
-  [board piece [x y]]
-  (let [collide? (fn [ny] (not (fits-in? board piece [x ny])))
-        gy (find-first collide? (iterate inc y))]
-    (max y (dec gy))))
-
-
 (defn write-to-board!
   "write tetromino on the board"
   []
@@ -154,11 +138,6 @@
       (finish-tetromino))))
 
 
-(defn toggle-ghost!
-  []
-  (swap! app assoc :ghost (not (:ghost @app))))
-
-
 (defn keydown-handler
   [event]
   (let [keyname (key-name event)]
@@ -167,7 +146,6 @@
       :right (try-move 1)
       :up (try-rotate)
       :down (move-down)
-      :g (toggle-ghost!)
       nil)
     (when (#{:down :left :right :up :space} keyname)
       (.preventDefault event))))
@@ -212,13 +190,25 @@
     (draw-tetromino! ctx next-cells [1 2])))
 
 
+
+
+
+
+
+
+
 (defn draw-ghost!
   [ctx]
   (set! (.-fillStyle ctx) "#555")
-  (let [{:keys [board piece position]} @app
+  (let [{:keys [piece position]} @app
         [x y] position
-        gy (get-drop-y board piece position)]
-    (draw-tetromino! ctx piece [x gy])))
+        new-position [x 18]]
+    (draw-tetromino! ctx piece [x 18])))
+
+
+
+
+
 
 
 (defn draw-board!
@@ -229,9 +219,7 @@
       (when-not (zero? cell-value)
         (do
           (set! (.-fillStyle ctx) (cell-value colors))
-          (draw-cell ctx [x y])))))
-  (when (:ghost @app)
-    (draw-ghost! ctx)))
+          (draw-cell ctx [x y]))))))
 
 
 (defn render
@@ -243,7 +231,10 @@
   (set! (.-lineWidth next-ctx) 2)
   (set! (.-strokeStyle game-ctx) "#333")
   (set! (.-strokeStyle next-ctx) "#2c2c2c")
+
   (draw-board! game-ctx (:board @app))
+  (draw-ghost! game-ctx)
+
   (draw-current! game-ctx)
   (draw-next! next-ctx))
 
