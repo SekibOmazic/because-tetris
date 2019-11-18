@@ -135,13 +135,36 @@
       (swap! app assoc :piece rotated))))
 
 
-(defn finish-tetromino
+(defn launch-next!
   []
-  (write-to-board!)
   (swap! app assoc :tetromino-name (:next-tetromino @app))
   (swap! app assoc :position initial-pos)
   (swap! app assoc :piece ((:tetromino-name @app) tetrominos))
   (swap! app assoc :next-tetromino (rand-nth (keys tetrominos))))
+
+
+
+(defn not-filled?
+  [row]
+  (some #(= 0 %) row))
+
+
+(defn collapse-filled-rows!
+  []
+  (let [old-board (:board @app)
+        filtered (filter #(not-filled? %) old-board)
+        collapsed (- (count old-board) (count filtered))
+        new-board (into (vec (repeat collapsed empty-row)) filtered)]
+    (swap! app assoc :board new-board)))
+
+
+(defn finish-tetromino
+  []
+  (write-to-board!)
+  (collapse-filled-rows!)
+  (launch-next!)
+  ;; TODO: if next doesn't fit in, game over 
+  )
 
 
 (defn move-down
@@ -152,6 +175,15 @@
     (if (fits-in? board piece new-pos)
       (swap! app assoc :position new-pos)
       (finish-tetromino))))
+
+
+(defn hard-drop!
+  []
+  (let [{:keys [board piece position]} @app
+        [x y] position
+        dy (get-drop-y board piece position)]
+    (swap! app assoc :position [x dy])
+    (finish-tetromino)))
 
 
 (defn toggle-ghost!
@@ -167,6 +199,7 @@
       :right (try-move 1)
       :up (try-rotate)
       :down (move-down)
+      :space (hard-drop!)
       :g (toggle-ghost!)
       nil)
     (when (#{:down :left :right :up :space} keyname)
