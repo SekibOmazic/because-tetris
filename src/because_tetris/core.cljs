@@ -16,7 +16,11 @@
    39 :right
    40 :down
    32 :space
-   71 :g})
+   71 :ghost
+   80 :pause
+   82 :rresume
+   13 :enter ;; new game
+   })
 
 (def tetrominos
   {:I [[-1  0] [ 0  0] [ 1  0] [ 2  0]]
@@ -34,14 +38,16 @@
 (def empty-board (vec (repeat rows empty-row)))
 
 (def initial-pos [4 2])
-
-;; state
-(defonce app (atom {:board empty-board
-                    :tetromino-name :J
-                    :piece (:J tetrominos)
+(def random-tetromino (rand-nth (keys tetrominos)))
+(def initial-state {:board empty-board
+                    :tetromino-name random-tetromino
+                    :piece (random-tetromino tetrominos)
                     :position initial-pos
                     :next-tetromino (rand-nth (keys tetrominos))
-                    :ghost true}))
+                    :ghost true
+                    :mode :running})
+;; state
+(defonce app (atom initial-state))
 
 ;; canvas
 (def game-canvas (.getElementById js/document "game-canvas"))
@@ -135,13 +141,25 @@
       (swap! app assoc :piece rotated))))
 
 
+(defn start-new-game!
+  []
+  (let [next-name (rand-nth (keys tetrominos))]
+    (reset! app initial-state)
+    (swap! app assoc :tetromino-name next-name)
+    (swap! app assoc :piece (next-name tetrominos))))
+
+
+(defn game-over!
+  []
+  (swap! app assoc :mode :game-over))
+
+
 (defn launch-next!
   []
   (swap! app assoc :tetromino-name (:next-tetromino @app))
   (swap! app assoc :position initial-pos)
   (swap! app assoc :piece ((:tetromino-name @app) tetrominos))
   (swap! app assoc :next-tetromino (rand-nth (keys tetrominos))))
-
 
 
 (defn not-filled?
@@ -163,7 +181,8 @@
   (write-to-board!)
   (collapse-filled-rows!)
   (launch-next!)
-  ;; TODO: if next doesn't fit in, game over 
+  (when-not (fits-in? (:board @app) (:piece @app) (:position @app))
+    (game-over!))
   )
 
 
@@ -193,15 +212,20 @@
 
 (defn keydown-handler
   [event]
-  (let [keyname (key-name event)]
-    (case keyname
-      :left (try-move -1)
-      :right (try-move 1)
-      :up (try-rotate)
-      :down (move-down)
-      :space (hard-drop!)
-      :g (toggle-ghost!)
-      nil)
+  (let [keyname (key-name event)
+        mode (:mode @app)]
+    (if (= mode :running)
+      (case keyname
+        :left (try-move -1)
+        :right (try-move 1)
+        :up (try-rotate)
+        :down (move-down)
+        :space (hard-drop!)
+        :ghost (toggle-ghost!)
+        nil)
+      (when (= keyname :enter)
+        (start-new-game!)))
+    
     (when (#{:down :left :right :up :space} keyname)
       (.preventDefault event))))
 
@@ -232,57 +256,71 @@
 
 
 (defn draw-current!
-  [ctx]
-  (set! (.-fillStyle ctx) ((:tetromino-name @app) colors))
-  (draw-tetromino! ctx (:piece @app) (:position @app)))
+  [ctx {:keys [tetromino-name piece position]}]
+  (set! (.-fillStyle ctx) (tetromino-name colors))
+  (draw-tetromino! ctx piece position))
 
 
 (defn draw-next!
-  [ctx]
-  (let [next-name (:next-tetromino @app)
-        next-cells (tetrominos next-name)]
-    (set! (.-fillStyle ctx) (next-name colors))
+  [ctx {:keys [next-tetromino]}]
+  (let [next-cells (tetrominos next-tetromino)]
+    (.clearRect ctx 0 0 (* cell-size 4) (* cell-size 4))
+    (set! (.-fillStyle ctx) (next-tetromino colors))
     (draw-tetromino! ctx next-cells [1 2])))
 
 
 (defn draw-ghost!
-  [ctx]
+  [ctx {:keys [board piece position ghost]}]
   (set! (.-fillStyle ctx) "#555")
-  (let [{:keys [board piece position]} @app
+  (let [;;{:keys [board piece position]} @app
         [x y] position
         gy (get-drop-y board piece position)]
-    (draw-tetromino! ctx piece [x gy])))
+    (when ghost 
+      (draw-tetromino! ctx piece [x gy]))))
 
 
 (defn draw-board!
-  [ctx board]
+  [ctx {:keys [board]}]
+  (.clearRect ctx 0 0 (* cell-size cols) (* cell-size rows))
   (doseq [y (range rows)
           x (range cols)]
     (let [cell-value (get-in board [y x])] ;; query board with [row coll]
       (when-not (zero? cell-value)
         (do
           (set! (.-fillStyle ctx) (cell-value colors))
-          (draw-cell ctx [x y])))))
-  (when (:ghost @app)
-    (draw-ghost! ctx)))
+          (draw-cell ctx [x y]))))))
 
 
 (defn render
   []
-  (.requestAnimationFrame js/window render)
-  (.clearRect game-ctx 0 0 (* cell-size cols) (* cell-size rows))
-  (.clearRect next-ctx 0 0 (* cell-size 4) (* cell-size 4))
-  (set! (.-lineWidth game-ctx) 2)
-  (set! (.-lineWidth next-ctx) 2)
-  (set! (.-strokeStyle game-ctx) "#333")
-  (set! (.-strokeStyle next-ctx) "#2c2c2c")
-  (draw-board! game-ctx (:board @app))
-  (draw-current! game-ctx)
-  (draw-next! next-ctx))
+  (let [state @app
+        mode (:mode @app)]
+    (when (= mode :running)
+      (draw-board! game-ctx state)
+      (draw-ghost! game-ctx state)
+      (draw-current! game-ctx state)
+      (draw-next! next-ctx state))
+    (.requestAnimationFrame js/window render)))
+
+
+#_(defn render
+  []
+  (let [state @app
+        mode (:mode @app)]
+    (cond->> state
+      (= mode :running) (draw-board! game-ctx)
+      (= mode :running) (draw-ghost! game-ctx)
+      (= mode :running) (draw-current! game-ctx)
+      (= mode :running) (draw-next! next-ctx))
+    (.requestAnimationFrame js/window render)))
 
 
 (.addEventListener js/window "keydown" keydown-handler)
 
+(set! (.-lineWidth game-ctx) 2)
+(set! (.-lineWidth next-ctx) 2)
+(set! (.-strokeStyle game-ctx) "#333")
+(set! (.-strokeStyle next-ctx) "#2c2c2c")
 
 ;; start
 (render)
