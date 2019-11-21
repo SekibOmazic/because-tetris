@@ -13,7 +13,7 @@ Learning clojure(script) by programming the cult game of tetris
 - Step 6: add colors and collision detection. No tetromino should be written to the board if it doesn't fit on the board (no cells out of the board and no overlapping with already stored tetrominons)
 - Step 7: use keyboard for tetromino movements (left, right, down, up for rotation). Render the ghost tetromino which can be toggled when pressing the key "g"
 - Step 8: collapse filled rows
-
+- Step 9: add gravity!
 
 ## Setup
 
