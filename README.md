@@ -13,7 +13,17 @@ Learning clojure(script) by programming the cult game of tetris
 - Step 6: add colors and collision detection. No tetromino should be written to the board if it doesn't fit on the board (no cells out of the board and no overlapping with already stored tetrominons)
 - Step 7: use keyboard for tetromino movements (left, right, down, up for rotation). Render the ghost tetromino which can be toggled when pressing the key "g"
 - Step 8: collapse filled rows
-- Step 9: add gravity!
+- Step 9: add gravity, add scoring and a better layout of the page.
+
+
+## To do
+
+- [ ] Add splash pane on game over and before starting the game.
+- [ ] Refactor code to be more functional. Currently the sate update is scattered all over the code base. 
+- [ ] Improve rotation system. User Super Rotation System as described [here](https://strategywiki.org/wiki/Tetris/Rotation_systems)
+- [ ] Add wall kicks as described [here](https://strategywiki.org/wiki/Tetris/Rotation_systems)
+- [ ] Use "valid" scoring system? Check [here] (https://tetris.wiki/Tetris_(NES,_Nintendo))
+
 
 ## Setup
 
