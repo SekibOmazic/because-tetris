@@ -7,17 +7,83 @@
     <link rel="icon" href="https://clojurescript.org/images/cljs-logo-icon-32.png">
   </head>
   <body>
-    <div id="app" class="main">
+    <div class="container">
       <h1>Just because tetris</h1>
-      <div class="game">
-	<canvas id="game-canvas" width="300" height="600" style="position: relative;"></canvas>
-      </div>
-      <div class="score">
-	<div class="next-piece">
-	  <canvas id="next-canvas" width="120" height="120"></canvas>
-	</div>
-        <p>Level <strong id="level">0</strong></p>
-        <p>Score <strong id="score">0</strong></p>
+
+      <div class="tetris">
+        <div class="left side">
+          <table>
+            <tbody>
+              <tr>
+                <td>→</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Move right</td>
+              </tr>
+              <tr>
+                <td>←</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Move left</td>
+              </tr>
+              <tr>
+                <td>↑</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Rotate</td>
+              </tr>
+              <tr>
+                <td>↓</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Soft drop</td>
+              </tr>
+              <tr>
+                <td>space</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Hard drop</td>
+              </tr>
+              <tr>
+                <td>esc</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Pause game</td>
+              </tr>
+              <tr>
+                <td>R</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Resume game</td>
+              </tr>
+              <tr>
+                <td>enter</td>
+                <td>
+                  <div style="width: 20px;" />
+                </td>
+                <td>Start new game</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="game">
+          <canvas id="game-canvas" width="300" height="600"></canvas>
+        </div>
+        <div class="side">
+          <p>Next</p>
+          <div class="next-piece">
+            <canvas id="next-canvas" width="120" height="120"></canvas>
+          </div>
+          <p>Level <strong id="level">0</strong></p>
+          <p>Score <strong id="score">0</strong></p>
+        </div>
       </div>
     </div>
     <script src="js/compiled/because_tetris.js" type="text/javascript"></script>

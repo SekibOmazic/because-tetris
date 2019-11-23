@@ -1,72 +1,75 @@
-body {
-  background: url("../img/black-tile.png");
-  overflow: hidden;
-}
+      body {
+        background: url("../img/black-tile.png");
+        overflow: hidden;
+        background-color: #333;
+      }
 
-h1 {
-    color: #EEE;
-    font-family: "Arial";
-    text-transform: uppercase;
-    margin-block-start: 0.3em;
-    margin-block-end: 0.3em;
-}
+      h1 {
+        color: #eee;
+        font-family: "Arial";
+        text-transform: uppercase;
+        margin-block-start: 0.3em;
+        margin-block-end: 0.3em;
+      }
 
-.main {
-  position: absolute;
-  left: 50%;
-  top: 20px;
-  margin-left: -490px;
-  width: 980px;
-}
+      .container {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 700px;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: nowrap;
+      }
 
-.score {
-    height: 600px;
-    width: 200px;
-    padding: 5px;
-    float: left;
-    display: inline;
-    background: #2c2c2c;
-    border-radius: 10px;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    -webkit-user-select: none;
-}
+      .tetris {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        height: 600px;
+        background-color: #333;
+        flex-wrap: nowrap;
+        width: 700px;
+        min-width: 700px;
+      }
 
-.game {
-  width: 300px;
-  height: 600px;
-  padding: 5px;
-  border-radius: 10px;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+      .side {
+        width: 200px;
+        background: #2c2c2c;
+        color: white;
+        font-family: "Helvetica", sans-serif;
+      }
 
-  float: left;
-  display: inline;
-  overflow: auto;
+      .game {
+        width: 300px;
+        background-color: #333;
+      }
 
-  background-color: #333;
-  color: #AAA;
-  font-size: 16px;
-}
+      .side table {
+        text-transform: uppercase;
+        font-size: 0.8em;
+      }
 
-.score p {
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-family: "Helvetica", sans-serif;
-    text-align: center;
-    margin-left: -1em;
-    color: white;
-}
+      .side p {
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-align: center;
+      }
 
-.score p strong {
-    width: 100%;
-    display: block;
-    font-size: 3em;
-    letter-spacing: 0px;
-}
+      .left {
+        justify-content: center;
+        align-items: center;
+        display: flex;
+      }
 
-.next-piece {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+      .side p strong {
+        width: 100%;
+        display: block;
+        font-size: 3em;
+        letter-spacing: 0px;
+      }
+
+      .next-piece {
+        justify-content: center;
+        display: flex;
+      }

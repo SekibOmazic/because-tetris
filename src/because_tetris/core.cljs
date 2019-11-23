@@ -17,8 +17,8 @@
    40 :down
    32 :space
    71 :ghost
-   80 :pause
-   82 :rresume
+   27 :escape ;; pause game
+   82 :resume
    13 :enter ;; new game
    })
 
@@ -30,6 +30,13 @@
    :Z [[-1 -1] [ 0 -1] [ 0  0] [ 1  0]]
    :O [[ 0 -1] [ 1 -1] [ 0  0] [ 1  0]]
    :T [[ 0 -1] [-1  0] [ 0  0] [ 1  0]]})
+
+;; gravity speed depending on current game level. As described here https://tetris.wiki/Tetris_(NES,_Nintendo)
+(def gravity-intervals
+  (mapv
+   (fn [speed] (* 1000 (/ speed 60.0988)))
+   [48 43 38 33 28 23 18 13 8 6 5 5 5 4 4 4 3 3 3 2 2 2 2 2 2 2 2 2 2 1]))
+
 
 ;; board 
 (def rows 20)
@@ -45,7 +52,11 @@
                     :position initial-pos
                     :next-tetromino (rand-nth (keys tetrominos))
                     :ghost true
-                    :mode :running})
+                    :mode :game-over
+                    :level 0
+                    :score 0
+                    :lines-completed 0
+                    :last-render-ts 0})
 ;; state
 (defonce app (atom initial-state))
 
@@ -55,28 +66,25 @@
 (def cell-size (quot 600 rows)) ;; quot rounds to the nearest integer
 (def next-canvas (.getElementById js/document "next-canvas"))
 (def next-ctx (.getContext next-canvas "2d"))
+(def score-text (.getElementById js/document "score"))
+(def level-text (.getElementById js/document "level"))
 
 
-(defn key-name
-  [event]
+(defn key-name [event]
   (-> event .-keyCode key-names))
 
 
 ;; tetromino rotation and movement
-(defn rotate-cell
-  [[x y]]
+(defn rotate-cell [[x y]]
   [(- y) x])
 
-(defn rotate
-  [tetromino]
+(defn rotate [tetromino]
   (mapv rotate-cell tetromino))
 
-(defn move-left
-  [[x y]]
+(defn move-left [[x y]]
   [(dec x) y])
 
-(defn move-right
-  [[x y]]
+(defn move-right [[x y]]
   [(inc x) y])
 
 
@@ -124,8 +132,7 @@
              cells-to-write piece position tetromino-name))))
 
 
-(defn try-move
-  [dx]
+(defn try-move [dx]
   (let [{:keys [board piece position]} @app
         [x y] position
         new-position [(+ dx x) y]]
@@ -133,61 +140,71 @@
       (swap! app assoc :position new-position))))
 
 
-(defn try-rotate
-  []
+(defn try-rotate []
   (let [{:keys [board piece position]} @app
         rotated (rotate piece)]
     (when (fits-in? board rotated position)
       (swap! app assoc :piece rotated))))
 
 
-(defn start-new-game!
-  []
+(defn start-new-game! []
   (let [next-name (rand-nth (keys tetrominos))]
     (reset! app initial-state)
+    (swap! app assoc :mode :running)
     (swap! app assoc :tetromino-name next-name)
     (swap! app assoc :piece (next-name tetrominos))))
 
 
-(defn game-over!
-  []
+(defn game-over! []
   (swap! app assoc :mode :game-over))
 
 
-(defn launch-next!
-  []
+(defn launch-next! []
   (swap! app assoc :tetromino-name (:next-tetromino @app))
   (swap! app assoc :position initial-pos)
   (swap! app assoc :piece ((:tetromino-name @app) tetrominos))
   (swap! app assoc :next-tetromino (rand-nth (keys tetrominos))))
 
 
-(defn not-filled?
-  [row]
+(defn not-filled? [row]
   (some #(= 0 %) row))
 
 
-(defn collapse-filled-rows!
+(defn next-level [level]
+  (* 5 (/ (* level (inc level)) 2)))
+
+
+(defn update-score!
   []
-  (let [old-board (:board @app)
-        filtered (filter #(not-filled? %) old-board)
-        collapsed (- (count old-board) (count filtered))
+  (let [{:keys [board lines-completed level score]} @app
+        filtered (filter #(not-filled? %) board)
+        collapsed (- (count board) (count filtered))
         new-board (into (vec (repeat collapsed empty-row)) filtered)]
-    (swap! app assoc :board new-board)))
+    (swap! app assoc :board new-board)
+    (swap! app assoc :lines-completed (+ collapsed lines-completed))
+    (swap! app assoc :level (if (>= lines-completed (next-level (inc level)))
+                              (inc level)
+                              level))
+    (swap! app assoc :score
+           (+ score
+              (* (inc level)
+                 (case collapsed
+                   0 0
+                   1 100
+                   2 300
+                   3 500
+                   4 800))))))
 
 
-(defn finish-tetromino
-  []
+(defn finish-tetromino []
   (write-to-board!)
-  (collapse-filled-rows!)
+  (update-score!)
   (launch-next!)
   (when-not (fits-in? (:board @app) (:piece @app) (:position @app))
-    (game-over!))
-  )
+    (game-over!)))
 
 
-(defn move-down
-  []
+(defn move-down []
   (let [{:keys [board piece position]} @app
         [x y] position
         new-pos [x (inc y)]]
@@ -196,8 +213,7 @@
       (finish-tetromino))))
 
 
-(defn hard-drop!
-  []
+(defn hard-drop! []
   (let [{:keys [board piece position]} @app
         [x y] position
         dy (get-drop-y board piece position)]
@@ -205,16 +221,15 @@
     (finish-tetromino)))
 
 
-(defn toggle-ghost!
-  []
+(defn toggle-ghost! []
   (swap! app assoc :ghost (not (:ghost @app))))
 
 
-(defn keydown-handler
-  [event]
+(defn keydown-handler [event]
   (let [keyname (key-name event)
         mode (:mode @app)]
-    (if (= mode :running)
+    (cond
+      (= mode :running)
       (case keyname
         :left (try-move -1)
         :right (try-move 1)
@@ -222,12 +237,19 @@
         :down (move-down)
         :space (hard-drop!)
         :ghost (toggle-ghost!)
+        :escape (swap! app assoc :mode :pause)
         nil)
-      (when (= keyname :enter)
-        (start-new-game!)))
-    
-    (when (#{:down :left :right :up :space} keyname)
-      (.preventDefault event))))
+      (= mode :pause)     (when (= keyname :resume) (swap! app assoc :mode :running))
+      (= mode :game-over) (when (= keyname :enter)  (start-new-game!)))))
+
+
+(defn process-gravity [now]
+  (let [{:keys [last-render-ts level]} @app
+        gravity-interval (nth gravity-intervals level 1)]
+    (if (> (- now last-render-ts) gravity-interval)
+      (do 
+        (swap! app assoc :last-render-ts now)
+        (move-down)))))
 
 
 (defn get-absolute-coords
@@ -272,8 +294,7 @@
 (defn draw-ghost!
   [ctx {:keys [board piece position ghost]}]
   (set! (.-fillStyle ctx) "#555")
-  (let [;;{:keys [board piece position]} @app
-        [x y] position
+  (let [[x y] position
         gy (get-drop-y board piece position)]
     (when ghost 
       (draw-tetromino! ctx piece [x gy]))))
@@ -291,27 +312,22 @@
           (draw-cell ctx [x y]))))))
 
 
-(defn render
-  []
+(defn render-status!
+ [{:keys [score level]}]
+ (aset score-text "innerText" score)
+ (aset level-text "innerText" level))
+
+
+(defn render [current-ts]
   (let [state @app
         mode (:mode @app)]
     (when (= mode :running)
+      (process-gravity current-ts)
       (draw-board! game-ctx state)
       (draw-ghost! game-ctx state)
       (draw-current! game-ctx state)
-      (draw-next! next-ctx state))
-    (.requestAnimationFrame js/window render)))
-
-
-#_(defn render
-  []
-  (let [state @app
-        mode (:mode @app)]
-    (cond->> state
-      (= mode :running) (draw-board! game-ctx)
-      (= mode :running) (draw-ghost! game-ctx)
-      (= mode :running) (draw-current! game-ctx)
-      (= mode :running) (draw-next! next-ctx))
+      (draw-next! next-ctx state)
+      (render-status! state))
     (.requestAnimationFrame js/window render)))
 
 
@@ -323,8 +339,7 @@
 (set! (.-strokeStyle next-ctx) "#2c2c2c")
 
 ;; start
-(render)
-
+(defonce launch (.requestAnimationFrame js/window render))
 
 (defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
