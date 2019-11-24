@@ -20,6 +20,7 @@
         justify-content: center;
         align-items: center;
         flex-wrap: nowrap;
+	position: relative;
       }
 
       .tetris {
@@ -72,4 +73,27 @@
       .next-piece {
         justify-content: center;
         display: flex;
+      }
+
+      .spalsh {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 360px;
+        height: 300px;
+        color: #fff;
+        background: url("../img/tetris-bg.jpg");
+        background-size: contain;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+        font-family: "Helvetica", sans-serif;
+      }
+
+      .message {
+        font-size: 1.5em;
+        letter-spacing: 0px;
       }
