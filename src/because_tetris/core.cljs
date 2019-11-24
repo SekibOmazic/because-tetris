@@ -17,10 +17,9 @@
    40 :down
    32 :space
    71 :ghost
-   27 :escape ;; pause game
+   27 :escape
    82 :resume
-   13 :enter ;; new game
-   })
+   13 :enter})
 
 (def tetrominos
   {:I [[-1  0] [ 0  0] [ 1  0] [ 2  0]]
@@ -52,7 +51,7 @@
                     :position initial-pos
                     :next-tetromino (rand-nth (keys tetrominos))
                     :ghost true
-                    :mode :game-over
+                    :mode :welcome
                     :level 0
                     :score 0
                     :lines-completed 0
@@ -68,6 +67,10 @@
 (def next-ctx (.getContext next-canvas "2d"))
 (def score-text (.getElementById js/document "score"))
 (def level-text (.getElementById js/document "level"))
+(def splash-panel (.getElementById js/document "splash"))
+(def message-div (.getElementById js/document "message"))
+(def welcome-msg "Welcome to the world of Tetris")
+(def gameover-msg "GAME OVER!")
 
 
 (defn key-name [event]
@@ -86,6 +89,10 @@
 
 (defn move-right [[x y]]
   [(inc x) y])
+
+
+(defn hide-splash! []
+  (set! (.-display (.-style splash-panel)) "none"))
 
 
 (defn cells-to-write
@@ -150,6 +157,7 @@
 (defn start-new-game! []
   (let [next-name (rand-nth (keys tetrominos))]
     (reset! app initial-state)
+    (hide-splash!)
     (swap! app assoc :mode :running)
     (swap! app assoc :tetromino-name next-name)
     (swap! app assoc :piece (next-name tetrominos))))
@@ -239,8 +247,11 @@
         :ghost (toggle-ghost!)
         :escape (swap! app assoc :mode :pause)
         nil)
-      (= mode :pause)     (when (= keyname :resume) (swap! app assoc :mode :running))
-      (= mode :game-over) (when (= keyname :enter)  (start-new-game!)))))
+      (= mode :pause)
+        (when (= keyname :resume) (swap! app assoc :mode :running))
+      (or (= mode :game-over) (= mode :welcome))
+        (when (= keyname :enter)
+          (start-new-game!)))))
 
 
 (defn process-gravity [now]
@@ -318,9 +329,23 @@
  (aset level-text "innerText" level))
 
 
+(defn show-welcome []
+  (aset message-div "innerText" welcome-msg)
+  (set! (.-display (.-style splash-panel)) "flex"))
+
+
+(defn show-game-over []
+  (aset message-div "innerText" gameover-msg)
+  (set! (.-display (.-style splash-panel)) "flex"))
+
+
 (defn render [current-ts]
   (let [state @app
         mode (:mode @app)]
+    (when (= mode :welcome)
+      (show-welcome))
+    (when (= mode :game-over)
+      (show-game-over))
     (when (= mode :running)
       (process-gravity current-ts)
       (draw-board! game-ctx state)
@@ -331,15 +356,17 @@
     (.requestAnimationFrame js/window render)))
 
 
-(.addEventListener js/window "keydown" keydown-handler)
 
-(set! (.-lineWidth game-ctx) 2)
-(set! (.-lineWidth next-ctx) 2)
-(set! (.-strokeStyle game-ctx) "#333")
-(set! (.-strokeStyle next-ctx) "#2c2c2c")
+(defn start-game []
+  (.addEventListener js/window "keydown" keydown-handler)
+  (set! (.-lineWidth game-ctx) 2)
+  (set! (.-lineWidth next-ctx) 2)
+  (set! (.-strokeStyle game-ctx) "#333")
+  (set! (.-strokeStyle next-ctx) "#2c2c2c")
+  (.requestAnimationFrame js/window render))
 
 ;; start
-(defonce launch (.requestAnimationFrame js/window render))
+(defonce launch (start-game))
 
 (defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
