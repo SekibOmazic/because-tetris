@@ -20,7 +20,7 @@ You can check out each of the following branches to see the progress:
 
 ## To do
 
-- [x] Add splash pane on game over and before starting the game.
+- [x] ~~Add splash pane on game over and before starting the game.~~
 - [ ] Refactor code to be more functional. Currently the state update is scattered all over the code base. 
 - [ ] Improve rotation system. User Super Rotation System as described [here](https://strategywiki.org/wiki/Tetris/Rotation_systems)
 - [ ] Add wall kicks as described [here](https://strategywiki.org/wiki/Tetris/Rotation_systems)
