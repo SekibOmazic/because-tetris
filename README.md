@@ -2,6 +2,13 @@
 
 Learning clojure(script) by programming the cult game of tetris
 
+## Just because tetris
+
+Here is my attempt to write tetris. Just want to learn some clojure and have fun.
+
+![](screenshot.png)
+
+
 ## Overview
 
 You can check out each of the following branches to see the progress:
