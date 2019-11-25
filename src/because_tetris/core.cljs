@@ -131,47 +131,49 @@
 
 (defn write-to-board!
   "write tetromino on the board"
-  []
-  (let [{:keys [board piece position tetromino-name]} @app]
-    (when (fits-in? board piece position)
-      (swap! app
-             update-in [:board]
-             cells-to-write piece position tetromino-name))))
+  [state]
+  (let [{:keys [board piece position tetromino-name]} state]
+    (if (fits-in? board piece position)
+      (assoc state :board (cells-to-write board piece position tetromino-name))
+      state)))
 
 
-(defn try-move [dx]
-  (let [{:keys [board piece position]} @app
+(defn try-move [dx state]
+  (let [{:keys [board piece position]} state
         [x y] position
         new-position [(+ dx x) y]]
-    (when (fits-in? board piece new-position)
-      (swap! app assoc :position new-position))))
+    (if (fits-in? board piece new-position)
+      (assoc state :position new-position)
+      state)))
 
 
-(defn try-rotate []
-  (let [{:keys [board piece position]} @app
+(defn try-rotate [state]
+  (let [{:keys [board piece position]} state
         rotated (rotate piece)]
-    (when (fits-in? board rotated position)
-      (swap! app assoc :piece rotated))))
+    (if (fits-in? board rotated position)
+      (assoc state :piece rotated)
+      state)))
 
 
 (defn start-new-game! []
   (let [next-name (rand-nth (keys tetrominos))]
-    (reset! app initial-state)
     (hide-splash!)
-    (swap! app assoc :mode :running)
-    (swap! app assoc :tetromino-name next-name)
-    (swap! app assoc :piece (next-name tetrominos))))
+    (merge initial-state {:mode :running
+                          :tetromino-name next-name
+                          :piece (next-name tetrominos)
+                          })))
 
 
-(defn game-over! []
-  (swap! app assoc :mode :game-over))
+(defn game-over! [state]
+  (assoc state :mode :game-over))
 
 
-(defn launch-next! []
-  (swap! app assoc :tetromino-name (:next-tetromino @app))
-  (swap! app assoc :position initial-pos)
-  (swap! app assoc :piece ((:tetromino-name @app) tetrominos))
-  (swap! app assoc :next-tetromino (rand-nth (keys tetrominos))))
+(defn launch-next! [{:keys [next-tetromino tetromino-name] :as state}]
+  (merge state {:tetromino-name next-tetromino
+                :position initial-pos
+                :piece (next-tetromino tetrominos)
+                :next-tetromino (rand-nth (keys tetrominos))
+                }))
 
 
 (defn not-filled? [row]
@@ -182,85 +184,85 @@
   (* 5 (/ (* level (inc level)) 2)))
 
 
-(defn update-score!
-  []
-  (let [{:keys [board lines-completed level score]} @app
+(defn update-score! [state1]
+  (let [{:keys [board lines-completed level score] :as state} state1
         filtered (filter #(not-filled? %) board)
         collapsed (- (count board) (count filtered))
         new-board (into (vec (repeat collapsed empty-row)) filtered)]
-    (swap! app assoc :board new-board)
-    (swap! app assoc :lines-completed (+ collapsed lines-completed))
-    (swap! app assoc :level (if (>= lines-completed (next-level (inc level)))
-                              (inc level)
-                              level))
-    (swap! app assoc :score
-           (+ score
-              (* (inc level)
-                 (case collapsed
-                   0 0
-                   1 100
-                   2 300
-                   3 500
-                   4 800))))))
+    (merge state
+           {:board new-board
+            :lines-completed (+ collapsed lines-completed)
+            :level (if (>= lines-completed (next-level (inc level)))
+                     (inc level)
+                     level)
+            :score (+ score
+                      (* (inc level)
+                         (case collapsed
+                           0 0
+                           1 100
+                           2 300
+                           3 500
+                           4 800)))
+            })))
 
 
-(defn finish-tetromino []
-  (write-to-board!)
-  (update-score!)
-  (launch-next!)
-  (when-not (fits-in? (:board @app) (:piece @app) (:position @app))
-    (game-over!)))
+(defn try-game-over! [{:keys [board piece position] :as state}]
+  (if-not (fits-in? board piece position)
+    (game-over! state)
+    state))
+
+(defn finish-tetromino [state]
+  (-> state
+   (write-to-board!) 
+   (update-score!)  
+   (launch-next!)    
+   (try-game-over!))) 
 
 
-(defn move-down []
-  (let [{:keys [board piece position]} @app
+(defn move-down [state1]
+  (let [{:keys [board piece position] :as state} state1
         [x y] position
         new-pos [x (inc y)]]
     (if (fits-in? board piece new-pos)
-      (swap! app assoc :position new-pos)
-      (finish-tetromino))))
+      (assoc state :position new-pos)
+      (finish-tetromino state))))
 
 
-(defn hard-drop! []
-  (let [{:keys [board piece position]} @app
+(defn hard-drop! [state]
+  (let [{:keys [board piece position]} state
         [x y] position
         dy (get-drop-y board piece position)]
-    (swap! app assoc :position [x dy])
-    (finish-tetromino)))
-
-
-(defn toggle-ghost! []
-  (swap! app assoc :ghost (not (:ghost @app))))
+    (finish-tetromino (assoc state :position [x dy]))))
 
 
 (defn keydown-handler [event]
   (let [keyname (key-name event)
-        mode (:mode @app)]
-    (cond
-      (= mode :running)
-      (case keyname
-        :left (try-move -1)
-        :right (try-move 1)
-        :up (try-rotate)
-        :down (move-down)
-        :space (hard-drop!)
-        :ghost (toggle-ghost!)
-        :escape (swap! app assoc :mode :pause)
-        nil)
-      (= mode :pause)
-        (when (= keyname :resume) (swap! app assoc :mode :running))
-      (or (= mode :game-over) (= mode :welcome))
-        (when (= keyname :enter)
-          (start-new-game!)))))
+        mode (:mode @app)
+        state @app]
+    (reset! app  
+            (cond
+              (= mode :running)
+              (case keyname
+                :left (try-move -1 state)
+                :right (try-move 1 state)
+                :up (try-rotate state)
+                :down (move-down state)
+                :space (hard-drop! state)
+                :ghost (assoc state :ghost (not (:ghost state)))
+                :escape (assoc state :mode :pause)
+                state)
+              (= mode :pause)
+                (if (= keyname :resume) (assoc state :mode :running) state)
+              (or (= mode :game-over) (= mode :welcome))
+                (if (= keyname :enter) (start-new-game!) state)))))
 
 
-(defn process-gravity [now]
-  (let [{:keys [last-render-ts level]} @app
+(defn process-gravity [now state]
+  (let [{:keys [last-render-ts level]} state
         gravity-interval (nth gravity-intervals level 1)]
     (if (> (- now last-render-ts) gravity-interval)
-      (do 
-        (swap! app assoc :last-render-ts now)
-        (move-down)))))
+      (move-down (assoc state :last-render-ts now))
+      state)))
 
 
 (defn get-absolute-coords
@@ -295,11 +297,12 @@
 
 
 (defn draw-next!
-  [ctx {:keys [next-tetromino]}]
+  [ctx {:keys [next-tetromino] :as state}]
   (let [next-cells (tetrominos next-tetromino)]
     (.clearRect ctx 0 0 (* cell-size 4) (* cell-size 4))
     (set! (.-fillStyle ctx) (next-tetromino colors))
-    (draw-tetromino! ctx next-cells [1 2])))
+    (draw-tetromino! ctx next-cells [1 2])
+    state))
 
 
 (defn draw-ghost!
@@ -323,38 +326,37 @@
           (draw-cell ctx [x y]))))))
 
 
-(defn render-status!
- [{:keys [score level]}]
- (aset score-text "innerText" score)
- (aset level-text "innerText" level))
+(defn render-status! [{:keys [score level] :as state}]
+  (aset score-text "innerText" score)
+  (aset level-text "innerText" level)
+  state)
 
 
-(defn show-welcome []
-  (aset message-div "innerText" welcome-msg)
+(defn render-splash! [msg]
+  (aset message-div "innerText" msg)
   (set! (.-display (.-style splash-panel)) "flex"))
 
 
-(defn show-game-over []
-  (aset message-div "innerText" gameover-msg)
-  (set! (.-display (.-style splash-panel)) "flex"))
+(defn draw-game! [ctx state]
+  (draw-board! ctx state)
+  (draw-ghost! ctx state)
+  (draw-current! ctx state)
+  state)
 
 
-(defn render [current-ts]
-  (let [state @app
-        mode (:mode @app)]
-    (when (= mode :welcome)
-      (show-welcome))
-    (when (= mode :game-over)
-      (show-game-over))
-    (when (= mode :running)
-      (process-gravity current-ts)
-      (draw-board! game-ctx state)
-      (draw-ghost! game-ctx state)
-      (draw-current! game-ctx state)
-      (draw-next! next-ctx state)
-      (render-status! state))
-    (.requestAnimationFrame js/window render)))
-
+(defn game-loop [now]
+  (let [{:keys [mode] :as state} @app]
+    (cond
+      (= mode :welcome) (render-splash! welcome-msg)
+      (= mode :game-over) (render-splash! gameover-msg)
+      (= mode :running) 
+      (->> state
+           (process-gravity now)
+           (draw-game! game-ctx)
+           (draw-next! next-ctx)
+           (render-status!)
+           (reset! app)))
+    (.requestAnimationFrame js/window game-loop)))
 
 
 (defn start-game []
@@ -363,7 +365,7 @@
   (set! (.-lineWidth next-ctx) 2)
   (set! (.-strokeStyle game-ctx) "#333")
   (set! (.-strokeStyle next-ctx) "#2c2c2c")
-  (.requestAnimationFrame js/window render))
+  (.requestAnimationFrame js/window game-loop))
 
 ;; start
 (defonce launch (start-game))
