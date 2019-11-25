@@ -17,11 +17,12 @@ You can check out each of the following branches to see the progress:
 - Step 8: collapse filled rows
 - Step 9: add gravity, add scoring and a better layout of the page.
 - Step 10: add splash screens
+- Step 11: code refactoring
 
 ## To do
 
 - [x] ~~Add splash pane on game over and before starting the game.~~
-- [ ] Refactor code to be more functional. Currently the state update is scattered all over the code base. 
+- [x] ~~Refactor code to be more functional. Currently the state update is scattered all over the code base.~~ 
 - [ ] Improve rotation system. User Super Rotation System as described [here](https://strategywiki.org/wiki/Tetris/Rotation_systems)
 - [ ] Add wall kicks as described [here](https://strategywiki.org/wiki/Tetris/Rotation_systems)
 - [ ] Use "valid" scoring system? Check [here] (https://tetris.wiki/Tetris_(NES,_Nintendo) )
